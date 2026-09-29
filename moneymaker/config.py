@@ -1,4 +1,5 @@
 import os
+import re
 from dataclasses import dataclass, field
 
 
@@ -47,3 +48,11 @@ class Config:
             min_confidence=_f("MIN_CONFIDENCE", 0.6),
             loop_seconds=int(_f("LOOP_SECONDS", 3600)),
         )
+
+
+def valid_key(k: str) -> bool:
+    return bool(re.fullmatch(r"(0x)?[0-9a-fA-F]{64}", k or ""))
+
+
+def valid_address(a: str) -> bool:
+    return bool(re.fullmatch(r"0x[0-9a-fA-F]{40}", a or ""))

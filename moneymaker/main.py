@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 from . import journal
 from .brain import Brain
-from .config import Config
+from .config import Config, valid_address, valid_key
 from .executor import Executor
 from .hl import make_info
 from .market import snapshot
@@ -22,12 +22,20 @@ def run():
     load_dotenv()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
     cfg = Config.from_env(require_keys=False)
-    if cfg.live and not (cfg.account_address and cfg.secret_key):
-        raise SystemExit("LIVE=true needs HL_ACCOUNT_ADDRESS and HL_SECRET_KEY in .env")
-    if not cfg.live and not cfg.secret_key:  # dry run needs no secrets: use a throwaway key that never trades
+    if cfg.live:
+        if not valid_address(cfg.account_address):
+            raise SystemExit("LIVE=true: HL_ACCOUNT_ADDRESS in .env is missing or not a real address (0x + 40 hex characters).")
+        if not valid_key(cfg.secret_key):
+            raise SystemExit("LIVE=true: HL_SECRET_KEY in .env is missing or not a real private key (64 hex characters). "
+                             "It is still the template placeholder if it contains 'Your'.")
+    else:  # dry run never trades: placeholders / missing values are replaced by harmless ones
         import eth_account
-        cfg = dataclasses.replace(cfg, secret_key=eth_account.Account.create().key.hex(),
-                                  account_address=cfg.account_address or "0x" + "0" * 40)
+        if not valid_key(cfg.secret_key):
+            cfg = dataclasses.replace(cfg, secret_key=eth_account.Account.create().key.hex())
+        if not valid_address(cfg.account_address):
+            if cfg.account_address:
+                log.warning("HL_ACCOUNT_ADDRESS is not a real address; ignoring it for this dry run")
+            cfg = dataclasses.replace(cfg, account_address="0x" + "0" * 40)
     ex = Executor(cfg)
     info = make_info(ex.url)
     if cfg.strategy == "claude":

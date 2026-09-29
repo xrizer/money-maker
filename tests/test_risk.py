@@ -49,3 +49,10 @@ def test_profit_target_stops_trading():
 def test_monthly_kill_switch():
     with pytest.raises(Rejected):
         size_order(d(), CFG, 10_000, 100, 0, 0, monthly_pnl=-900)
+
+
+def test_key_and_address_validation():
+    from moneymaker.config import valid_address, valid_key
+    assert valid_key("0x" + "a" * 64) and valid_key("b" * 64)
+    assert not valid_key("0xYourApiAgentPrivateKey") and not valid_key("")
+    assert valid_address("0x" + "1" * 40) and not valid_address("0xYourMainAccountAddress")
