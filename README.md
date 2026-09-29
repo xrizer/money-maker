@@ -18,3 +18,10 @@ Each cycle: market snapshot -> Claude (forced tool call `submit_decision`) -> de
 
 ## Not financial advice
 LLM decisions are not an edge by themselves. Backtest/paper trade before risking capital.
+
+## Backtest
+    python -m moneymaker.backtest --days 90 --step-hours 4 --brain rule     # free baseline
+    python -m moneymaker.backtest --days 30 --step-hours 4 --brain claude   # costs API calls, cached in data/
+
+Uses real Hyperliquid 1h candles (max ~205 days), the same risk engine, taker fees 0.045% + 0.02% slippage.
+No funding/OI history and no funding payments are simulated. Always compare against the buy&hold line.

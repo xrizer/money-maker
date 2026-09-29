@@ -25,10 +25,10 @@ class Config:
     loop_seconds: int = 3600
 
     @classmethod
-    def from_env(cls):
+    def from_env(cls, require_keys: bool = True):
         return cls(
-            account_address=os.environ["HL_ACCOUNT_ADDRESS"],
-            secret_key=os.environ["HL_SECRET_KEY"],
+            account_address=os.environ["HL_ACCOUNT_ADDRESS"] if require_keys else os.getenv("HL_ACCOUNT_ADDRESS", ""),
+            secret_key=os.environ["HL_SECRET_KEY"] if require_keys else os.getenv("HL_SECRET_KEY", ""),
             network=os.getenv("HL_NETWORK", "testnet"),
             live=os.getenv("LIVE", "false").lower() == "true",
             model=os.getenv("CLAUDE_MODEL", "claude-sonnet-5-5"),
