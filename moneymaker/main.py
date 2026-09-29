@@ -4,12 +4,12 @@ import os
 import time
 
 from dotenv import load_dotenv
-from hyperliquid.info import Info
 
 from . import journal
 from .brain import Brain
 from .config import Config
 from .executor import Executor
+from .hl import make_info
 from .market import snapshot
 from .risk import Rejected, size_order
 from .state import load_baselines, mark_target_hit
@@ -29,7 +29,7 @@ def run():
         cfg = dataclasses.replace(cfg, secret_key=eth_account.Account.create().key.hex(),
                                   account_address=cfg.account_address or "0x" + "0" * 40)
     ex = Executor(cfg)
-    info = Info(ex.url, skip_ws=True)
+    info = make_info(ex.url)
     if cfg.strategy == "claude":
         brain = Brain(cfg.model)
     else:

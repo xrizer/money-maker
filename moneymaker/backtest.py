@@ -251,11 +251,12 @@ def run_backtest(cfg: Config, candles: dict, brain, step_hours=4, start_equity=3
 
 def fetch_candles(coins, days, cache_dir="data") -> dict:
     """Real mainnet 1h candles (Hyperliquid serves at most the latest 5000 = ~208 days). Cached on disk."""
-    from hyperliquid.info import Info
     from hyperliquid.utils import constants
+
+    from .hl import make_info
     if (days + 2) * 24 > 5000:
         raise SystemExit("--days must be <= 205")
-    info = Info(constants.MAINNET_API_URL, skip_ws=True)
+    info = make_info(constants.MAINNET_API_URL)
     end = int(time.time() * 1000)
     start = end - (days * 24 + WARMUP) * 3600_000
     out = {}

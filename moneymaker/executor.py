@@ -5,6 +5,7 @@ from hyperliquid.exchange import Exchange
 from hyperliquid.utils import constants
 
 from .config import Config
+from .hl import EMPTY_SPOT
 from .risk import Order
 
 log = logging.getLogger("executor")
@@ -20,7 +21,7 @@ class Executor:
         url = constants.MAINNET_API_URL if cfg.network == "mainnet" else constants.TESTNET_API_URL
         self.url = url
         wallet = eth_account.Account.from_key(cfg.secret_key)
-        self.ex = Exchange(wallet, url, account_address=cfg.account_address)
+        self.ex = Exchange(wallet, url, account_address=cfg.account_address or None, spot_meta=EMPTY_SPOT)
 
     def open(self, o: Order, sz_decimals: int):
         size = round(o.size, sz_decimals)
