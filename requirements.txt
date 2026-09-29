@@ -1,0 +1,4 @@
+hyperliquid-python-sdk>=0.10
+anthropic>=0.40
+pytest
+python-dotenv
