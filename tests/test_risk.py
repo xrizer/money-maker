@@ -13,7 +13,7 @@ def d(**k):
 
 def test_sizes_to_risk_budget():
     o = size_order(d(), CFG, 10_000, 50_000, 0, 0)
-    assert o.size * 50_000 == pytest.approx(5_000 * 0.4, rel=1e-6) or o.size * 50_000 <= 2_000
+    assert o.size * 50_000 == pytest.approx(5_000)  # 1% risk / 2% stop, at the 50% position cap
     assert o.stop_px == pytest.approx(49_000)
     assert o.take_profit_px == pytest.approx(52_000)
 
@@ -38,7 +38,7 @@ def test_kill_switch():
 
 def test_exposure_cap():
     with pytest.raises(Rejected):
-        size_order(d(), CFG, 10_000, 100, 4_990, 0)
+        size_order(d(), CFG, 10_000, 100, 9_990, 0)
 
 
 def test_profit_target_stops_trading():
