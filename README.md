@@ -35,3 +35,9 @@ Daily profit target is off by default because it hurt results in testing.
 
 ## Dry run without funds
     HL_NETWORK=mainnet LIVE=false PAPER_EQUITY=300 python -m moneymaker.main   # add ONCE=true for a single cycle
+
+## Dashboard
+While the bot runs, open http://127.0.0.1:8080/dashboard.html (set `UI_PORT=0` to disable).
+Shows balance (USD + IDR), today/month PnL against the monthly loss stop, balance history, open positions,
+the last decision, risk limits and an activity log. The bot writes `ui/status.json` every cycle; the page polls it.
+The server binds to 127.0.0.1 only. To view it from your phone, use an SSH tunnel; do not expose it to the internet.

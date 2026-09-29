@@ -5,3 +5,5 @@ logs/
 .pytest_cache/
 data/
 state.json
+ui/status.json
+ui/status.tmp
