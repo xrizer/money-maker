@@ -1,0 +1,19 @@
+[Unit]
+Description=money-maker Hyperliquid bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=moneymaker
+WorkingDirectory=/home/moneymaker/money-maker
+# .env in the working directory is read by the bot itself (keys never appear in this unit file)
+ExecStart=/home/moneymaker/money-maker/venv/bin/python -m moneymaker.main
+Restart=always
+RestartSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target
