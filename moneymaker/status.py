@@ -36,7 +36,7 @@ class Reporter:
             "limits": {
                 "risk_per_trade_pct": c.max_risk_per_trade_pct, "max_leverage": c.max_leverage,
                 "max_position_pct": c.max_position_pct, "max_daily_loss_pct": c.max_daily_loss_pct,
-                "max_monthly_loss_pct": c.max_monthly_loss_pct, "daily_profit_target_pct": c.daily_profit_target_pct,
+                "max_monthly_loss_pct": c.max_monthly_loss_pct, "dd_derisk_pct": c.dd_derisk_pct, "daily_profit_target_pct": c.daily_profit_target_pct,
                 "coins": list(c.coins),
             },
             "paused": bool(self.control and self.control.paused), "token": self.control.token if self.control else "",

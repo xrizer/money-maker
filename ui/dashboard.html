@@ -257,6 +257,8 @@ function render(d) {
   add("Max leverage", lm.max_leverage + "x");
   add("Max position", (lm.max_position_pct * 100).toFixed(0) + "% of balance");
   add("Daily loss stop", (lm.max_daily_loss_pct * 100).toFixed(1) + "%");
+  add("Position size now", d.risk_scale != null ? (d.risk_scale * 100).toFixed(0) + "% of normal" + (d.risk_scale < 1 ? " (shrunk after drawdown)" : "") : "–");
+  add("Shrinks after drawdown of", lm.dd_derisk_pct > 0 ? (lm.dd_derisk_pct * 100).toFixed(0) + "% from peak" : "off");
   add("Monthly loss stop", (lm.max_monthly_loss_pct * 100).toFixed(1) + "%");
   add("Daily profit target", lm.daily_profit_target_pct > 0 ? (lm.daily_profit_target_pct * 100).toFixed(2) + "%" : "off");
   add("Coins", lm.coins.join(", "));

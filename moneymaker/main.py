@@ -12,7 +12,7 @@ from .control import Control
 from .executor import Executor
 from .hl import make_info
 from .market import snapshot
-from .risk import Rejected, size_order
+from .risk import Rejected, risk_scale, size_order
 from .state import load_baselines, mark_target_hit
 from .status import Reporter, serve
 
@@ -77,7 +77,8 @@ def run():
             daily_pnl = snap["equity"] - start_equity
             monthly_pnl = snap["equity"] - st["month_start_equity"]
             exposure = sum(p["notional"] for p in snap["positions"])
-            fields = dict(equity=snap["equity"], day_start=start_equity, month_start=st["month_start_equity"],
+            scale = risk_scale(cfg, snap["equity"], st["peak_equity"])
+            fields = dict(risk_scale=scale, peak_equity=st["peak_equity"], equity=snap["equity"], day_start=start_equity, month_start=st["month_start_equity"],
                           daily_pnl=daily_pnl, monthly_pnl=monthly_pnl, positions=snap["positions"],
                           prices={c: v["mid"] for c, v in snap["coins"].items()})
 
@@ -117,7 +118,7 @@ def run():
                     else:
                         try:
                             o = size_order(d, cfg, snap["equity"], snap["coins"][d.coin]["mid"],
-                                           exposure, daily_pnl, monthly_pnl)
+                                           exposure, daily_pnl, monthly_pnl, scale, len(snap["positions"]))
                             side = "LONG" if o.is_buy else "SHORT"
                             mode = "" if cfg.live else "[dry run] "
                             if cfg.live or last_open != (o.coin, side):  # dry run: don't repeat the same line every cycle

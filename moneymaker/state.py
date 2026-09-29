@@ -24,6 +24,7 @@ def load_baselines(equity: float, path: Path = PATH, ctx: str = "") -> dict:
         st.update(month=month, month_start_equity=equity)
     if st.get("day") != day:
         st.update(day=day, day_start_equity=equity, target_hit=False)
+    st["peak_equity"] = max(st.get("peak_equity", equity), equity)  # for drawdown-based de-risking
     path.write_text(json.dumps(st))
     return st
 

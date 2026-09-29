@@ -56,3 +56,20 @@ def test_key_and_address_validation():
     assert valid_key("0x" + "a" * 64) and valid_key("b" * 64)
     assert not valid_key("0xYourApiAgentPrivateKey") and not valid_key("")
     assert valid_address("0x" + "1" * 40) and not valid_address("0xYourMainAccountAddress")
+
+
+def test_drawdown_derisk_scales_and_floors():
+    from moneymaker.risk import risk_scale
+    c = Config(dd_derisk_pct=0.08, min_risk_scale=0.25)
+    assert risk_scale(c, 300, 300) == 1.0
+    assert risk_scale(c, 288, 300) == pytest.approx(0.5)       # 4% drawdown -> half size
+    assert risk_scale(c, 200, 300) == 0.25                      # deep drawdown -> floor, never zero
+    assert risk_scale(Config(dd_derisk_pct=0), 200, 300) == 1.0
+
+
+def test_scale_shrinks_order_and_position_cap():
+    full = size_order(d(), CFG, 10_000, 100, 0, 0)
+    half = size_order(d(), CFG, 10_000, 100, 0, 0, scale=0.5)
+    assert half.size == pytest.approx(full.size / 2)
+    with pytest.raises(Rejected):
+        size_order(d(), Config(max_positions=1), 10_000, 100, 0, 0, n_positions=1)

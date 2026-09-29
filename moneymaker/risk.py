@@ -30,9 +30,17 @@ class Rejected(Exception):
     pass
 
 
+def risk_scale(cfg: Config, equity: float, peak_equity: float) -> float:
+    """Shrink risk while in drawdown (1.0 = full size). Survive bad runs, then rebuild size as equity recovers."""
+    if cfg.dd_derisk_pct <= 0 or peak_equity <= 0:
+        return 1.0
+    dd = max(0.0, (peak_equity - equity) / peak_equity)
+    return max(cfg.min_risk_scale, min(1.0, 1.0 - dd / cfg.dd_derisk_pct))
+
+
 def size_order(d: Decision, cfg: Config, equity: float, px: float,
                total_exposure: float, daily_pnl: float,
-               monthly_pnl: float = 0.0) -> Order:
+               monthly_pnl: float = 0.0, scale: float = 1.0, n_positions: int = 0) -> Order:
     """Validate a decision and compute a size that respects every limit."""
     if d.coin not in cfg.coins:
         raise Rejected(f"{d.coin} not in allowed coins")
@@ -49,7 +57,9 @@ def size_order(d: Decision, cfg: Config, equity: float, px: float,
     if not 0.002 <= d.stop_loss_pct <= 0.10:
         raise Rejected("stop_loss_pct must be within 0.2%..10% (stop is mandatory)")
 
-    risk_usd = cfg.max_risk_per_trade_pct * equity
+    if n_positions >= cfg.max_positions:
+        raise Rejected(f"already {n_positions} open positions (max {cfg.max_positions})")
+    risk_usd = cfg.max_risk_per_trade_pct * equity * scale
     notional = risk_usd / d.stop_loss_pct           # loss at stop == risk_usd
     notional = min(notional, cfg.max_position_pct * equity)
     notional = min(notional, cfg.max_total_exposure_pct * equity - total_exposure)

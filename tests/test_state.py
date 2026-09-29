@@ -18,3 +18,9 @@ def test_changing_context_resets_baselines(tmp_path):
     assert b["month_start_equity"] == 61.7                  # no fake -238 USD "loss"
     same = load_baselines(70.0, p, ctx="testnet|0x0|real")
     assert same["month_start_equity"] == 61.7
+
+
+def test_peak_equity_tracked(tmp_path):
+    p = tmp_path / "s.json"
+    load_baselines(300.0, p); load_baselines(320.0, p)
+    assert load_baselines(310.0, p)["peak_equity"] == 320.0

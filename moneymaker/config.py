@@ -21,6 +21,9 @@ class Config:
     max_risk_per_trade_pct: float = 0.01
     max_daily_loss_pct: float = 0.03
     daily_profit_target_pct: float = 0.0  # 0 = disabled (backtests: daily targets hurt)
+    max_positions: int = 3            # concurrent positions (BTC/ETH/SOL crash together)
+    dd_derisk_pct: float = 0.08       # 0 = off. Risk shrinks linearly to min_risk_scale as drawdown from peak equity reaches this
+    min_risk_scale: float = 0.25
     paper_equity: float = 0.0  # dry-run only: pretend this many USD instead of reading the account
     strategy: str = "rule"  # rule | claude
     max_monthly_loss_pct: float = 0.08
@@ -44,6 +47,9 @@ class Config:
             daily_profit_target_pct=_f("DAILY_PROFIT_TARGET_PCT", 0.0),
             strategy=os.getenv("STRATEGY", "rule"),
             paper_equity=_f("PAPER_EQUITY", 0.0),
+            max_positions=int(_f("MAX_POSITIONS", 3)),
+            dd_derisk_pct=_f("DD_DERISK_PCT", 0.08),
+            min_risk_scale=_f("MIN_RISK_SCALE", 0.25),
             max_monthly_loss_pct=_f("MAX_MONTHLY_LOSS_PCT", 0.08),
             min_confidence=_f("MIN_CONFIDENCE", 0.6),
             loop_seconds=int(_f("LOOP_SECONDS", 3600)),

@@ -19,7 +19,7 @@ from pathlib import Path
 
 from . import journal
 from .config import Config
-from .risk import Decision, Rejected, size_order
+from .risk import Decision, Rejected, risk_scale, size_order
 
 TAKER_FEE = 0.00045
 MAKER_FEE = 0.00015
@@ -152,6 +152,7 @@ def run_backtest(cfg: Config, candles: dict, brain, step_hours=4, start_equity=3
     n = min(len(v) for v in candles.values())
     cash, positions, trades, fees = start_equity, [], [], 0.0
     trade_log, cur = [], {}
+    peak_eq = start_equity
     daily_eq, peak, max_dd = [start_equity], start_equity, 0.0
     day = month = None
     day_start = month_start = start_equity
@@ -181,6 +182,7 @@ def run_backtest(cfg: Config, candles: dict, brain, step_hours=4, start_equity=3
         cur["ts"] = ts
         opens = {c: float(candles[c][i]["o"]) for c in coins}
         equity = cash + unreal(opens)
+        peak_eq = max(peak_eq, equity)
         if ts.strftime("%Y-%m-%d") != day:
             if day is not None:
                 daily_eq.append(equity)
@@ -211,7 +213,8 @@ def run_backtest(cfg: Config, candles: dict, brain, step_hours=4, start_equity=3
             elif d.action in ("open_long", "open_short") and not any(p.coin == d.coin for p in positions):
                 exposure = sum(p.size * opens[p.coin] for p in positions)
                 try:
-                    o = size_order(d, cfg, equity, opens[d.coin], exposure, daily_pnl, monthly_pnl)
+                    o = size_order(d, cfg, equity, opens[d.coin], exposure, daily_pnl, monthly_pnl,
+                                   risk_scale(cfg, equity, peak_eq), len(positions))
                 except Rejected:
                     o = None
                 if o:

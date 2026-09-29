@@ -67,3 +67,15 @@ The dashboard has **Pause new trades / Resume trading** and **Stop & close all p
 - The paused state is saved (`data/control.json`) and survives restarts. `START_PAUSED=true` starts paused on first run.
 - The bot process must be running; the page cannot launch it. Ctrl+C in the terminal stops the process itself.
 - The API only accepts requests from this computer, with a per-run secret token, a local Host header and same-origin requests.
+
+## Surviving volatility (tested, 200 days)
+Adopted: **drawdown de-risking** (`DD_DERISK_PCT=0.08`). Position size shrinks as equity falls below its peak
+(half size at -4%, 25% floor), and grows back as it recovers.
+| | return | max drawdown | worst 40-day window | profit factor |
+|---|---|---|---|---|
+| before | +24.6% | 12.8% | -7.9% | 1.39 |
+| with de-risking | +22.4% | 7.5% | -1.6% | 1.55 |
+Stress test (instant ±15%/±30% gap on all coins at 18 dates): worst drawdown 31.7% -> 21.5%, worst end result -11.5% -> -5.8%.
+
+Tested and rejected (made things worse out of sample): volatility-scaled stops, skipping high-volatility periods,
+pausing after 3 losses in a row, capping to 1-2 positions.
