@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from . import journal
 from .brain import Brain
 from .config import Config, valid_address, valid_key
+from .control import Control
 from .executor import Executor
 from .hl import make_info
 from .market import snapshot
@@ -44,17 +45,21 @@ def run():
         from .backtest import RuleBrain
         brain = RuleBrain()
     sz_dec = {m["name"]: m["szDecimals"] for m in info.meta()["universe"]}
-    rep = Reporter(cfg)
+    control = Control(start_paused=os.getenv("START_PAUSED", "false").lower() == "true")
+    rep = Reporter(cfg, control)
     ot = journal.OpenTrades()
     port = int(os.getenv("UI_PORT", "8080"))
     if port:
-        serve(port)
+        serve(port, control)
         log.info("dashboard: http://127.0.0.1:%d/dashboard.html", port)
     log.info("network=%s live=%s coins=%s", cfg.network, cfg.live, cfg.coins)
     if cfg.network == "mainnet" and cfg.live:
         log.warning("LIVE MAINNET TRADING ENABLED")
 
-    last_decision, last_open = None, None
+    rep.write(state="paused" if control.paused else "starting", last_decision=None)  # fresh token on disk before the first cycle
+    if control.paused:
+        log.warning("Trading is PAUSED (saved setting). Resume it from the dashboard.")
+    last_decision, last_open, was_paused = None, None, control.paused
     while True:
         state, fields = "trading", {}
         try:
@@ -72,6 +77,12 @@ def run():
                           daily_pnl=daily_pnl, monthly_pnl=monthly_pnl, positions=snap["positions"],
                           prices={c: v["mid"] for c, v in snap["coins"].items()})
 
+            if control.paused != was_paused:
+                was_paused = control.paused
+                rep.event("pause" if was_paused else "resume", "Trading paused from dashboard" if was_paused else "Trading resumed from dashboard")
+            if control.take_flatten():
+                rep.event("flatten", "Manual stop: closing all positions")
+                ex.flatten(info, snap["positions"])
             if monthly_pnl <= -cfg.max_monthly_loss_pct * st["month_start_equity"]:
                 state = "monthly_stop"
                 log.warning("MONTHLY LOSS LIMIT hit (%.2f USD). Flattening; no trading until next month.", monthly_pnl)
@@ -85,6 +96,8 @@ def run():
                     rep.event("target", f"Daily target reached ({daily_pnl:+.2f} USD): closing all, stopping for today")
                     ex.flatten(info, snap["positions"])
                     mark_target_hit()
+            elif control.paused:
+                state = "paused"
             else:
                 d = brain.decide(snap)
                 log.info("decision: %s", d)
@@ -129,7 +142,7 @@ def run():
             rep.write(state=state, last_decision=last_decision, **fields)
         if os.getenv("ONCE") == "true":
             return
-        time.sleep(cfg.loop_seconds)
+        control.wait(cfg.loop_seconds)
 
 
 if __name__ == "__main__":

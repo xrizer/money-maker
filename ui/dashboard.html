@@ -61,6 +61,12 @@ dt { color: var(--muted); } dd { margin: 0; text-align: right; font-variant-nume
 input[type=number] { width: 96px; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font: inherit; }
 button { padding: 5px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--text); font: inherit; cursor: pointer; }
 svg text { fill: var(--muted); font-size: 11px; }
+.control { display: flex; flex-wrap: wrap; gap: 12px 18px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+button.primary { background: var(--good); color: #fff; border-color: transparent; font-weight: 600; }
+button.pause { background: var(--warn-bg); color: var(--warn); border-color: transparent; font-weight: 600; }
+button.danger { background: var(--bad-bg); color: var(--bad); border-color: transparent; font-weight: 600; }
+button:disabled { opacity: .5; cursor: progress; }
+button.big { padding: 9px 16px; font-size: 15px; }
 .two { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); margin-bottom: 12px; }
 </style>
 </head>
@@ -75,6 +81,18 @@ svg text { fill: var(--muted); font-size: 11px; }
   </header>
 
   <div id="banner" class="banner">Loading…</div>
+
+  <section class="card control">
+    <div>
+      <h2>Trading control</h2>
+      <div id="ctlState" style="font-weight:600">…</div>
+      <div class="sub" id="ctlMsg" role="status">Open positions always keep their stop-loss / take-profit on the exchange.</div>
+    </div>
+    <div class="row">
+      <button id="btnToggle" class="big" disabled>…</button>
+      <button id="btnFlatten" class="big danger" disabled>Stop &amp; close all positions</button>
+    </div>
+  </section>
 
   <section class="grid">
     <div class="card">
@@ -160,6 +178,8 @@ $("rate").onchange = () => { store.set("rate", $("rate").value); if (data) rende
 
 const STATES = {
   trading:      ["good", "Bot is running normally."],
+  starting:     ["", "Bot is starting…"],
+  paused:       ["warn", "Trading is PAUSED. No new trades will be opened. Open positions keep their stop-loss/take-profit."],
   daily_target: ["warn", "Daily profit target reached. Positions closed; no new trades until next UTC day."],
   monthly_stop: ["bad",  "Monthly loss limit hit. Positions closed; no new trades until next month."],
   error:        ["bad",  "Last cycle failed. See Activity below for the error."]
@@ -245,15 +265,50 @@ function render(d) {
   const E = $("events"); E.replaceChildren();
   if (!d.events.length) E.append(el("li", "Nothing yet.", "empty"));
   d.events.slice().reverse().forEach(e => {
-    const li = el("li"), k = {open: "good", close: "", hold: "", rejected: "warn", target: "warn", kill: "bad", error: "bad"}[e.kind] || "";
+    const li = el("li"), k = {open: "good", close: "", hold: "", rejected: "warn", target: "warn", kill: "bad", error: "bad", pause: "warn", resume: "good", flatten: "bad"}[e.kind] || "";
     li.append(el("time", new Date(e.t).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"})),
       el("span", e.kind.toUpperCase(), "badge " + k), el("span", e.text));
     li.style.alignItems = "center";
     E.append(li);
   });
 
+  const t = $("btnToggle"), f = $("btnFlatten");
+  $("ctlState").textContent = d.paused ? "PAUSED: no new trades are opened." : "RUNNING: trades are opened when the rules signal.";
+  $("ctlState").style.color = d.paused ? "var(--warn)" : "var(--good)";
+  t.textContent = d.paused ? "▶ Resume trading" : "⏸ Pause new trades";
+  t.className = "big " + (d.paused ? "primary" : "pause");
+  if (!busy) { t.disabled = false; f.disabled = false; }
+
   chart(d.history || []);
 }
+
+let busy = false;
+const post = action => fetch("/api/control", {method: "POST", headers: {"Content-Type": "application/json", "X-Token": data.token},
+  body: JSON.stringify({action})});
+async function control(action) {
+  if (!data || busy) return;
+  busy = true; $("btnToggle").disabled = $("btnFlatten").disabled = true;
+  $("ctlMsg").textContent = "Sending…";
+  try {
+    let r = await post(action);
+    if (r.status === 403) { await poll(); r = await post(action); }   // token changes whenever the bot restarts
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || r.status);
+    $("ctlMsg").textContent = action === "flatten" ? "Close-all requested: paused and closing positions."
+      : j.paused ? "Paused." : "Resumed: the bot is checking the market now.";
+    setTimeout(poll, 2500);
+  } catch (e) {
+    $("ctlMsg").textContent = "Failed: " + e.message + ". Is the bot still running?";
+  } finally { busy = false; $("btnToggle").disabled = $("btnFlatten").disabled = false; }
+}
+$("btnToggle").onclick = () => {
+  if (!data) return;
+  if (data.paused && data.live && data.network === "mainnet" && !confirm("Resume LIVE trading with real money on MAINNET?")) return;
+  control(data.paused ? "resume" : "pause");
+};
+$("btnFlatten").onclick = () => {
+  if (confirm("Close ALL open positions now and pause trading?")) control("flatten");
+};
 
 /* balance history as inline SVG line */
 function chart(h) {

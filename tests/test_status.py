@@ -6,7 +6,7 @@ from moneymaker.status import Reporter
 
 def test_reporter_writes_valid_json_and_bounds_history(tmp_path):
     p = tmp_path / "status.json"
-    r = Reporter(Config(), p)
+    r = Reporter(Config(), path=p)
     for i in range(350):
         r.event("hold", f"e{i}")
         r.write(state="trading", equity=300 + i)
@@ -18,5 +18,5 @@ def test_reporter_writes_valid_json_and_bounds_history(tmp_path):
 
 def test_reporter_resumes_previous_history(tmp_path):
     p = tmp_path / "status.json"
-    Reporter(Config(), p).write(state="trading", equity=300)
-    assert len(Reporter(Config(), p).history) == 1
+    Reporter(Config(), path=p).write(state="trading", equity=300)
+    assert len(Reporter(Config(), path=p).history) == 1

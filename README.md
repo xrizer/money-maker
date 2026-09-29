@@ -59,3 +59,11 @@ Offline test: `python -m moneymaker.backtest --days 200 --last-days 60 --journal
     python3 -m moneymaker.backtest --days 200 --brain rule                 # no keys needed
     PAPER_EQUITY=300 HL_NETWORK=mainnet python3 -m moneymaker.main         # dry run, no keys needed (Ctrl+C to stop)
 Secrets go ONLY in `.env` (git-ignored), never in `.env.example` (tracked by git).
+
+## Start / stop from the dashboard
+The dashboard has **Pause new trades / Resume trading** and **Stop & close all positions** buttons.
+- Pause: no new trades; existing positions keep their exchange stop-loss/take-profit. Resume: the bot checks the market immediately.
+- Stop & close all: cancels all resting orders, closes every position at market, and leaves trading paused.
+- The paused state is saved (`data/control.json`) and survives restarts. `START_PAUSED=true` starts paused on first run.
+- The bot process must be running; the page cannot launch it. Ctrl+C in the terminal stops the process itself.
+- The API only accepts requests from this computer, with a per-run secret token, a local Host header and same-origin requests.
