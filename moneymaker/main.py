@@ -124,8 +124,10 @@ def run():
                                 rep.event("open", f"{mode}{side} {o.coin} ~{o.size * o.entry_px:,.0f} USD, "
                                                   f"stop {o.stop_px:,.4g}, take-profit {o.take_profit_px:,.4g}")
                             last_open = (o.coin, side)
-                            ex.open(o, sz_dec[d.coin])
-                            if cfg.live:
+                            opened = ex.open(o, sz_dec[d.coin])
+                            if not opened:
+                                rep.event("error", f"{o.coin}: entry failed or was closed because the stop-loss was rejected. See log.")
+                            if cfg.live and opened:
                                 ot.add(o.coin, {"source": "live", "coin": o.coin, "side": "long" if o.is_buy else "short",
                                                 "open_t": time.strftime("%Y-%m-%dT%H:%M:%S+00:00", time.gmtime()),
                                                 "open_ms": int(time.time() * 1000), "entry": o.entry_px, "stop": o.stop_px,
