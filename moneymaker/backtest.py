@@ -301,7 +301,14 @@ def main():
         brain = CachedBrain(Brain(cfg.model), cfg.model, a.max_calls)
     else:
         brain = RuleBrain()
-    res = run_backtest(cfg, candles, brain, a.step_hours, a.equity)
+    try:
+        res = run_backtest(cfg, candles, brain, a.step_hours, a.equity)
+    except Exception as e:
+        if type(e).__name__ == "AuthenticationError":
+            raise SystemExit("Anthropic API key rejected (401). Put a real key in .env as ANTHROPIC_API_KEY=sk-ant-... "
+                             "(create one at console.anthropic.com -> API Keys; it needs billing credit). "
+                             "The template value 'sk-ant-...' is not a key. Cached decisions so far are kept.")
+        raise
     print(res.summary())
     if a.journal_out:
         Path(a.journal_out).parent.mkdir(parents=True, exist_ok=True)
