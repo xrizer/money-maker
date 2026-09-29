@@ -43,4 +43,4 @@ def test_exposure_cap():
 
 def test_profit_target_stops_trading():
     with pytest.raises(Rejected):
-        size_order(d(), CFG, 10_200, 100, 0, 200)
+        size_order(d(), CFG, 10_200, 100, 0, 250)
