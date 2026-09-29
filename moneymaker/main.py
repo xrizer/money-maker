@@ -26,15 +26,25 @@ def run():
     if cfg.network == "mainnet" and cfg.live:
         log.warning("LIVE MAINNET TRADING ENABLED")
 
-    day, start_equity = None, None
+    day, start_equity, target_hit = None, None, False
     while True:
         try:
             snap = snapshot(info, cfg.account_address, cfg.coins)
             today = datetime.now(timezone.utc).date()
             if day != today:
-                day, start_equity = today, snap["equity"]
+                day, start_equity, target_hit = today, snap["equity"], False
             daily_pnl = snap["equity"] - start_equity
             exposure = sum(p["notional"] for p in snap["positions"])
+
+            target = cfg.daily_profit_target_pct * start_equity
+            if daily_pnl >= target:
+                if not target_hit:
+                    log.info("DAILY TARGET REACHED: %+.2f USD (%.2f%%). Flattening and stopping until next UTC day.",
+                             daily_pnl, 100 * daily_pnl / start_equity)
+                    ex.flatten(info, snap["positions"])
+                    target_hit = True
+                time.sleep(cfg.loop_seconds)
+                continue
 
             d = brain.decide(snap)
             log.info("decision: %s", d)

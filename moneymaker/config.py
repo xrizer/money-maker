@@ -19,6 +19,7 @@ class Config:
     max_total_exposure_pct: float = 0.50
     max_risk_per_trade_pct: float = 0.01
     max_daily_loss_pct: float = 0.03
+    daily_profit_target_pct: float = 0.02
     min_confidence: float = 0.6
     loop_seconds: int = 900
 
@@ -36,6 +37,7 @@ class Config:
             max_total_exposure_pct=_f("MAX_TOTAL_EXPOSURE_PCT", 0.50),
             max_risk_per_trade_pct=_f("MAX_RISK_PER_TRADE_PCT", 0.01),
             max_daily_loss_pct=_f("MAX_DAILY_LOSS_PCT", 0.03),
+            daily_profit_target_pct=_f("DAILY_PROFIT_TARGET_PCT", 0.02),
             min_confidence=_f("MIN_CONFIDENCE", 0.6),
             loop_seconds=int(_f("LOOP_SECONDS", 900)),
         )

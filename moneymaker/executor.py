@@ -52,3 +52,13 @@ class Executor:
             log.info("[DRY RUN] would close %s", coin)
             return
         log.info("close: %s", self.ex.market_close(coin))
+
+    def flatten(self, info, positions):
+        """Cancel all resting/trigger orders and close every position."""
+        if not self.cfg.live:
+            log.info("[DRY RUN] would cancel orders and close %s", [p["coin"] for p in positions])
+            return
+        for o in info.open_orders(self.cfg.account_address):
+            self.ex.cancel(o["coin"], o["oid"])
+        for p in positions:
+            self.close(p["coin"])

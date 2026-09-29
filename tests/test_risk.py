@@ -39,3 +39,8 @@ def test_kill_switch():
 def test_exposure_cap():
     with pytest.raises(Rejected):
         size_order(d(), CFG, 10_000, 100, 4_990, 0)
+
+
+def test_profit_target_stops_trading():
+    with pytest.raises(Rejected):
+        size_order(d(), CFG, 10_200, 100, 0, 200)
