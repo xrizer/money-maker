@@ -11,10 +11,11 @@ import hashlib
 import json
 import math
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
+from . import journal
 from .config import Config
 from .risk import Decision, Rejected, size_order
 
@@ -33,6 +34,7 @@ class Pos:
     stop: float
     tp: float | None
     entry_fee: float
+    meta: dict | None = None
 
 
 @dataclass
@@ -46,6 +48,7 @@ class Result:
     days_target_hit: int
     months_killed: int
     buy_hold_return: float
+    trade_log: list = field(default_factory=list)
 
     def summary(self) -> str:
         pnls = [t for t in self.trades]
@@ -79,15 +82,23 @@ class RuleBrain:
     trade the coin with the strongest 12h move if it agrees with its 24h-average trend,
     long or short, 4% stop / 8% take-profit (2:1). Deterministic and free (no API calls)."""
 
-    def __init__(self, lookback=12, ema=24, sl=0.04, tp=0.08, min_move=0.01):
+    def __init__(self, lookback=12, ema=24, sl=0.04, tp=0.08, min_move=0.01,
+                 max_move=None, sides="both", skip_coins=()):
         self.lb, self.ema, self.sl, self.tp, self.mm = lookback, ema, sl, tp, min_move
+        self.max_move, self.sides, self.skip = max_move, sides, tuple(skip_coins)
 
     def decide(self, snap: dict) -> Decision:
         best, best_move = None, 0.0
         for coin, c in snap["coins"].items():
+            if coin in self.skip:
+                continue
             cl = [k[3] for k in c["candles_1h_ohlcv"]]
             move = cl[-1] / cl[-1 - self.lb] - 1
             trend = cl[-1] / (sum(cl[-self.ema:]) / self.ema) - 1
+            if self.sides != "both" and (move > 0) != (self.sides == "long"):
+                continue
+            if self.max_move is not None and abs(move) > self.max_move:
+                continue  # move already exhausted
             if move * trend > 0 and abs(move) > abs(best_move) and abs(move) > self.mm:
                 best, best_move = coin, move
         if best is None:
@@ -138,6 +149,7 @@ def run_backtest(cfg: Config, candles: dict, brain, step_hours=4, start_equity=3
     coins = list(candles)
     n = min(len(v) for v in candles.values())
     cash, positions, trades, fees = start_equity, [], [], 0.0
+    trade_log, cur = [], {}
     daily_eq, peak, max_dd = [start_equity], start_equity, 0.0
     day = month = None
     day_start = month_start = start_equity
@@ -146,17 +158,25 @@ def run_backtest(cfg: Config, candles: dict, brain, step_hours=4, start_equity=3
     def unreal(prices):
         return sum((prices[p.coin] - p.entry) * p.size * (1 if p.is_buy else -1) for p in positions)
 
-    def close(p, px, rate):
+    def close(p, px, rate, reason="other"):
         nonlocal cash, fees
         pnl = (px - p.entry) * p.size * (1 if p.is_buy else -1)
         fee = p.size * px * rate
         cash += pnl - fee
         fees += fee
         trades.append(pnl - fee - p.entry_fee)
+        m = p.meta or {}
+        trade_log.append({
+            "source": "backtest", "coin": p.coin, "side": "long" if p.is_buy else "short",
+            "open_t": m.get("open_t"), "close_t": cur["ts"].isoformat(), "entry": p.entry, "exit": px,
+            "stop": p.stop, "tp": p.tp, "size": p.size, "pnl_net": pnl - fee - p.entry_fee,
+            "fees": fee + p.entry_fee, "exit_reason": reason, "features": m.get("features"),
+            "rationale": m.get("rationale"), "confidence": m.get("confidence")})
         positions.remove(p)
 
     for i in range(WARMUP, n):
         ts = datetime.fromtimestamp(candles[coins[0]][i]["t"] / 1000, timezone.utc)
+        cur["ts"] = ts
         opens = {c: float(candles[c][i]["o"]) for c in coins}
         equity = cash + unreal(opens)
         if ts.strftime("%Y-%m-%d") != day:
@@ -170,7 +190,7 @@ def run_backtest(cfg: Config, candles: dict, brain, step_hours=4, start_equity=3
         def flatten():
             for p in list(positions):
                 exit_px = opens[p.coin] * (1 - slip if p.is_buy else 1 + slip)
-                close(p, exit_px, taker)
+                close(p, exit_px, taker, "flatten")
 
         if monthly_pnl <= -cfg.max_monthly_loss_pct * month_start:
             if killed_month != month:
@@ -185,7 +205,7 @@ def run_backtest(cfg: Config, candles: dict, brain, step_hours=4, start_equity=3
             d = brain.decide(snap)
             if d.action == "close":
                 for p in [p for p in positions if p.coin == d.coin]:
-                    close(p, opens[p.coin] * (1 - slip if p.is_buy else 1 + slip), taker)
+                    close(p, opens[p.coin] * (1 - slip if p.is_buy else 1 + slip), taker, "signal_close")
             elif d.action in ("open_long", "open_short") and not any(p.coin == d.coin for p in positions):
                 exposure = sum(p.size * opens[p.coin] for p in positions)
                 try:
@@ -197,21 +217,23 @@ def run_backtest(cfg: Config, candles: dict, brain, step_hours=4, start_equity=3
                     fee = o.size * entry * taker
                     cash -= fee
                     fees += fee
-                    positions.append(Pos(o.coin, o.is_buy, o.size, entry, o.stop_px, o.take_profit_px, fee))
+                    positions.append(Pos(o.coin, o.is_buy, o.size, entry, o.stop_px, o.take_profit_px, fee, {
+                        "open_t": ts.isoformat(), "features": journal.features(snap["coins"][d.coin], ts.hour),
+                        "rationale": d.rationale, "confidence": d.confidence}))
 
         # Intra-candle stop / take-profit. Stop is checked first (conservative).
         for p in list(positions):
             hi, lo, op = (float(candles[p.coin][i][k]) for k in ("h", "l", "o"))
             if p.is_buy:
                 if lo <= p.stop:
-                    close(p, min(p.stop, op) * (1 - slip), taker)
+                    close(p, min(p.stop, op) * (1 - slip), taker, "stop")
                 elif p.tp and hi >= p.tp:
-                    close(p, p.tp, maker)
+                    close(p, p.tp, maker, "take_profit")
             else:
                 if hi >= p.stop:
-                    close(p, max(p.stop, op) * (1 + slip), taker)
+                    close(p, max(p.stop, op) * (1 + slip), taker, "stop")
                 elif p.tp and lo <= p.tp:
-                    close(p, p.tp, maker)
+                    close(p, p.tp, maker, "take_profit")
 
         closes = {c: float(candles[c][i]["c"]) for c in coins}
         eq_close = cash + unreal(closes)
@@ -222,7 +244,7 @@ def run_backtest(cfg: Config, candles: dict, brain, step_hours=4, start_equity=3
     end_equity = cash + unreal(closes)
     daily_eq.append(end_equity)
     bh = sum(float(candles[c][n - 1]["c"]) / float(candles[c][WARMUP]["o"]) - 1 for c in coins) / len(coins)
-    return Result(start_equity, end_equity, max_dd, trades, fees, daily_eq, days_hit, months_killed, bh)
+    return Result(start_equity, end_equity, max_dd, trades, fees, daily_eq, days_hit, months_killed, bh, trade_log)
 
 
 def fetch_candles(coins, days, cache_dir="data") -> dict:
@@ -254,6 +276,8 @@ def main():
     ap.add_argument("--brain", choices=["rule", "claude"], default="rule")
     ap.add_argument("--equity", type=float, default=300.0, help="USD (5,000,000 IDR ~ 300)")
     ap.add_argument("--max-calls", type=int, default=300, help="cap on paid Claude API calls")
+    ap.add_argument("--last-days", type=int, default=0, help="only simulate the most recent N days")
+    ap.add_argument("--journal-out", default="", help="write the simulated trades as a journal (jsonl)")
     a = ap.parse_args()
     try:
         from dotenv import load_dotenv
@@ -262,6 +286,8 @@ def main():
         pass
     cfg = Config.from_env(require_keys=False)
     candles = fetch_candles(cfg.coins, a.days)
+    if a.last_days:
+        candles = {c: v[-(a.last_days * 24 + WARMUP):] for c, v in candles.items()}
     if a.brain == "claude":
         from .brain import Brain
         n_calls = a.days * 24 // a.step_hours
@@ -269,7 +295,12 @@ def main():
         brain = CachedBrain(Brain(cfg.model), cfg.model, a.max_calls)
     else:
         brain = RuleBrain()
-    print(run_backtest(cfg, candles, brain, a.step_hours, a.equity).summary())
+    res = run_backtest(cfg, candles, brain, a.step_hours, a.equity)
+    print(res.summary())
+    if a.journal_out:
+        Path(a.journal_out).parent.mkdir(parents=True, exist_ok=True)
+        Path(a.journal_out).write_text("".join(json.dumps(t) + "\n" for t in res.trade_log))
+        print(f"journal: {len(res.trade_log)} trades -> {a.journal_out}")
 
 
 if __name__ == "__main__":

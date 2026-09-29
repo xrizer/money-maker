@@ -41,3 +41,15 @@ While the bot runs, open http://127.0.0.1:8080/dashboard.html (set `UI_PORT=0` t
 Shows balance (USD + IDR), today/month PnL against the monthly loss stop, balance history, open positions,
 the last decision, risk limits and an activity log. The bot writes `ui/status.json` every cycle; the page polls it.
 The server binds to 127.0.0.1 only. To view it from your phone, use an SSH tunnel; do not expose it to the internet.
+
+## Learning from past trades (review loop)
+The bot never retrains itself. Instead it keeps a journal and you review it weekly:
+
+1. Live trades are recorded to `data/journal.jsonl` (real fills, fees, market features at entry, stop/take-profit/other exit).
+2. `python -m moneymaker.review` (needs 20+ closed trades and `ANTHROPIC_API_KEY`) computes stats, asks Claude for a skeptical
+   analysis and up to 3 proposed rule changes (only whitelisted strategy parameters, never risk limits), then backtests each
+   proposal on the candles BEFORE the journal period. Proposals that don't beat the baseline out-of-sample are marked REJECT.
+3. Reports go to `data/reviews/`. Nothing is applied automatically; you edit the defaults yourself, backtest, then testnet.
+
+Offline test: `python -m moneymaker.backtest --days 200 --last-days 60 --journal-out data/demo_journal.jsonl`, then
+`python -m moneymaker.review --journal data/demo_journal.jsonl --proposals my_proposals.json` (skips the Claude call).

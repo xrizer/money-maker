@@ -5,6 +5,7 @@ import time
 from dotenv import load_dotenv
 from hyperliquid.info import Info
 
+from . import journal
 from .brain import Brain
 from .config import Config
 from .executor import Executor
@@ -29,6 +30,7 @@ def run():
         brain = RuleBrain()
     sz_dec = {m["name"]: m["szDecimals"] for m in info.meta()["universe"]}
     rep = Reporter(cfg)
+    ot = journal.OpenTrades()
     port = int(os.getenv("UI_PORT", "8080"))
     if port:
         serve(port)
@@ -44,6 +46,8 @@ def run():
             snap = snapshot(info, cfg.account_address, cfg.coins)
             if not cfg.live and cfg.paper_equity > 0:
                 snap["equity"], snap["positions"] = cfg.paper_equity, []
+            if cfg.live:
+                journal.reconcile(info, cfg.account_address, snap["positions"], ot)
             st = load_baselines(snap["equity"])
             start_equity = st["day_start_equity"]
             daily_pnl = snap["equity"] - start_equity
@@ -89,6 +93,13 @@ def run():
                                                   f"stop {o.stop_px:,.4g}, take-profit {o.take_profit_px:,.4g}")
                             last_open = (o.coin, side)
                             ex.open(o, sz_dec[d.coin])
+                            if cfg.live:
+                                ot.add(o.coin, {"source": "live", "coin": o.coin, "side": "long" if o.is_buy else "short",
+                                                "open_t": time.strftime("%Y-%m-%dT%H:%M:%S+00:00", time.gmtime()),
+                                                "open_ms": int(time.time() * 1000), "entry": o.entry_px, "stop": o.stop_px,
+                                                "tp": o.take_profit_px, "size": o.size, "rationale": d.rationale,
+                                                "confidence": d.confidence,
+                                                "features": journal.features(snap["coins"][d.coin], time.gmtime().tm_hour)})
                         except Rejected as e:
                             log.info("REJECTED by risk engine: %s", e)
                             rep.event("rejected", f"{d.coin}: {e}")
