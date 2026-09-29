@@ -25,3 +25,10 @@ LLM decisions are not an edge by themselves. Backtest/paper trade before risking
 
 Uses real Hyperliquid 1h candles (max ~205 days), the same risk engine, taker fees 0.045% + 0.02% slippage.
 No funding/OI history and no funding payments are simulated. Always compare against the buy&hold line.
+
+## Default strategy (`STRATEGY=rule`)
+Found by backtest with a train/hold-out split (200 days, BTC/ETH/SOL): trade the coin with the strongest 12h move
+when it agrees with its 24h-average trend; long or short; 4% stop, 8% take-profit; check every 4h in backtests.
+200-day result: +24.6%, max drawdown 12.8%, profit factor 1.39, 90 trades. Positive in 4 of 5 separate 40-day windows
+(worst window -7.9%). This is past data, ~90 trades, one market regime mix: promising, not proof.
+Daily profit target is off by default because it hurt results in testing.

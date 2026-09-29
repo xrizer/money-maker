@@ -44,7 +44,7 @@ def size_order(d: Decision, cfg: Config, equity: float, px: float,
         raise Rejected("daily loss limit hit (kill switch)")
     if monthly_pnl <= -cfg.max_monthly_loss_pct * equity:
         raise Rejected("monthly loss limit hit (kill switch)")
-    if daily_pnl >= cfg.daily_profit_target_pct * equity:
+    if cfg.daily_profit_target_pct > 0 and daily_pnl >= cfg.daily_profit_target_pct * equity:
         raise Rejected("daily profit target reached, done for the day")
     if not 0.002 <= d.stop_loss_pct <= 0.10:
         raise Rejected("stop_loss_pct must be within 0.2%..10% (stop is mandatory)")

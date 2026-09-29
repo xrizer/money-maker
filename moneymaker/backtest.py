@@ -75,19 +75,24 @@ class Result:
 
 
 class RuleBrain:
-    """Free momentum baseline: trade the coin with the strongest 12h move if it agrees with the 24h trend."""
+    """Momentum rule found by backtesting (train/hold-out split, 200 days, BTC/ETH/SOL 1h):
+    trade the coin with the strongest 12h move if it agrees with its 24h-average trend,
+    long or short, 4% stop / 8% take-profit (2:1). Deterministic and free (no API calls)."""
+
+    def __init__(self, lookback=12, ema=24, sl=0.04, tp=0.08, min_move=0.01):
+        self.lb, self.ema, self.sl, self.tp, self.mm = lookback, ema, sl, tp, min_move
 
     def decide(self, snap: dict) -> Decision:
         best, best_move = None, 0.0
         for coin, c in snap["coins"].items():
             cl = [k[3] for k in c["candles_1h_ohlcv"]]
-            move = cl[-1] / cl[-13] - 1
-            trend = cl[-1] / (sum(cl[-24:]) / 24) - 1
-            if move * trend > 0 and abs(move) > abs(best_move) and abs(move) > 0.01:
+            move = cl[-1] / cl[-1 - self.lb] - 1
+            trend = cl[-1] / (sum(cl[-self.ema:]) / self.ema) - 1
+            if move * trend > 0 and abs(move) > abs(best_move) and abs(move) > self.mm:
                 best, best_move = coin, move
         if best is None:
             return Decision("hold", next(iter(snap["coins"])))
-        return Decision("open_long" if best_move > 0 else "open_short", best, 0.7, 0.02, 0.03, "momentum")
+        return Decision("open_long" if best_move > 0 else "open_short", best, 0.7, self.sl, self.tp, "momentum")
 
 
 class CachedBrain:
@@ -171,7 +176,7 @@ def run_backtest(cfg: Config, candles: dict, brain, step_hours=4, start_equity=3
             if killed_month != month:
                 killed_month, months_killed = month, months_killed + 1
             flatten()
-        elif daily_pnl >= cfg.daily_profit_target_pct * day_start:
+        elif cfg.daily_profit_target_pct > 0 and daily_pnl >= cfg.daily_profit_target_pct * day_start:
             if not target_hit_today:
                 target_hit_today, days_hit = True, days_hit + 1
             flatten()

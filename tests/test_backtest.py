@@ -67,3 +67,12 @@ def test_daily_target_flattens_and_stops():
     prices = [100] * (WARMUP + 2) + [103] * 10
     r = run_backtest(cfg, {"BTC": mk(prices)}, Scripted(LONG), 1)
     assert r.days_target_hit >= 1
+
+
+def test_rule_brain_goes_long_on_uptrend_and_holds_when_flat():
+    from moneymaker.backtest import RuleBrain, _snap
+    up = {"BTC": mk([100 + i * 0.3 for i in range(WARMUP + 5)])}
+    flat = {"BTC": mk([100] * (WARMUP + 5))}
+    for cs, action in ((up, "open_long"), (flat, "hold")):
+        opens = {"BTC": float(cs["BTC"][WARMUP]["o"])}
+        assert RuleBrain().decide(_snap(cs, WARMUP, 300, [], opens)).action == action

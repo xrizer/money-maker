@@ -19,7 +19,8 @@ class Config:
     max_total_exposure_pct: float = 1.00
     max_risk_per_trade_pct: float = 0.01
     max_daily_loss_pct: float = 0.03
-    daily_profit_target_pct: float = 0.005
+    daily_profit_target_pct: float = 0.0  # 0 = disabled (backtests: daily targets hurt)
+    strategy: str = "rule"  # rule | claude
     max_monthly_loss_pct: float = 0.08
     min_confidence: float = 0.6
     loop_seconds: int = 3600
@@ -38,7 +39,8 @@ class Config:
             max_total_exposure_pct=_f("MAX_TOTAL_EXPOSURE_PCT", 1.00),
             max_risk_per_trade_pct=_f("MAX_RISK_PER_TRADE_PCT", 0.01),
             max_daily_loss_pct=_f("MAX_DAILY_LOSS_PCT", 0.03),
-            daily_profit_target_pct=_f("DAILY_PROFIT_TARGET_PCT", 0.005),
+            daily_profit_target_pct=_f("DAILY_PROFIT_TARGET_PCT", 0.0),
+            strategy=os.getenv("STRATEGY", "rule"),
             max_monthly_loss_pct=_f("MAX_MONTHLY_LOSS_PCT", 0.08),
             min_confidence=_f("MIN_CONFIDENCE", 0.6),
             loop_seconds=int(_f("LOOP_SECONDS", 3600)),
