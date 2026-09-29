@@ -15,13 +15,14 @@ class Config:
     model: str = "claude-sonnet-5-5"
     coins: tuple = ("BTC", "ETH", "SOL")
     max_leverage: int = 3
-    max_position_pct: float = 0.20
-    max_total_exposure_pct: float = 0.50
+    max_position_pct: float = 0.50
+    max_total_exposure_pct: float = 1.00
     max_risk_per_trade_pct: float = 0.01
     max_daily_loss_pct: float = 0.03
-    daily_profit_target_pct: float = 0.02
+    daily_profit_target_pct: float = 0.005
+    max_monthly_loss_pct: float = 0.08
     min_confidence: float = 0.6
-    loop_seconds: int = 900
+    loop_seconds: int = 3600
 
     @classmethod
     def from_env(cls):
@@ -33,11 +34,12 @@ class Config:
             model=os.getenv("CLAUDE_MODEL", "claude-sonnet-5-5"),
             coins=tuple(c.strip() for c in os.getenv("COINS", "BTC,ETH,SOL").split(",")),
             max_leverage=int(_f("MAX_LEVERAGE", 3)),
-            max_position_pct=_f("MAX_POSITION_PCT", 0.20),
-            max_total_exposure_pct=_f("MAX_TOTAL_EXPOSURE_PCT", 0.50),
+            max_position_pct=_f("MAX_POSITION_PCT", 0.50),
+            max_total_exposure_pct=_f("MAX_TOTAL_EXPOSURE_PCT", 1.00),
             max_risk_per_trade_pct=_f("MAX_RISK_PER_TRADE_PCT", 0.01),
             max_daily_loss_pct=_f("MAX_DAILY_LOSS_PCT", 0.03),
-            daily_profit_target_pct=_f("DAILY_PROFIT_TARGET_PCT", 0.02),
+            daily_profit_target_pct=_f("DAILY_PROFIT_TARGET_PCT", 0.005),
+            max_monthly_loss_pct=_f("MAX_MONTHLY_LOSS_PCT", 0.08),
             min_confidence=_f("MIN_CONFIDENCE", 0.6),
-            loop_seconds=int(_f("LOOP_SECONDS", 900)),
+            loop_seconds=int(_f("LOOP_SECONDS", 3600)),
         )

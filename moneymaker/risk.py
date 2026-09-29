@@ -31,7 +31,8 @@ class Rejected(Exception):
 
 
 def size_order(d: Decision, cfg: Config, equity: float, px: float,
-               total_exposure: float, daily_pnl: float) -> Order:
+               total_exposure: float, daily_pnl: float,
+               monthly_pnl: float = 0.0) -> Order:
     """Validate a decision and compute a size that respects every limit."""
     if d.coin not in cfg.coins:
         raise Rejected(f"{d.coin} not in allowed coins")
@@ -41,6 +42,8 @@ def size_order(d: Decision, cfg: Config, equity: float, px: float,
         raise Rejected("no equity")
     if daily_pnl <= -cfg.max_daily_loss_pct * equity:
         raise Rejected("daily loss limit hit (kill switch)")
+    if monthly_pnl <= -cfg.max_monthly_loss_pct * equity:
+        raise Rejected("monthly loss limit hit (kill switch)")
     if daily_pnl >= cfg.daily_profit_target_pct * equity:
         raise Rejected("daily profit target reached, done for the day")
     if not 0.002 <= d.stop_loss_pct <= 0.10:

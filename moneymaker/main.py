@@ -9,6 +9,7 @@ from .brain import Brain
 from .config import Config
 from .executor import Executor
 from .market import snapshot
+from .state import load_baselines, mark_target_hit
 from .risk import Rejected, size_order
 
 log = logging.getLogger("main")
@@ -26,23 +27,29 @@ def run():
     if cfg.network == "mainnet" and cfg.live:
         log.warning("LIVE MAINNET TRADING ENABLED")
 
-    day, start_equity, target_hit = None, None, False
     while True:
         try:
             snap = snapshot(info, cfg.account_address, cfg.coins)
-            today = datetime.now(timezone.utc).date()
-            if day != today:
-                day, start_equity, target_hit = today, snap["equity"], False
+            st = load_baselines(snap["equity"])
+            start_equity = st["day_start_equity"]
             daily_pnl = snap["equity"] - start_equity
+            monthly_pnl = snap["equity"] - st["month_start_equity"]
             exposure = sum(p["notional"] for p in snap["positions"])
+
+            if monthly_pnl <= -cfg.max_monthly_loss_pct * st["month_start_equity"]:
+                log.warning("MONTHLY LOSS LIMIT hit (%.2f USD). Flattening; no trading until next month.", monthly_pnl)
+                if snap["positions"]:
+                    ex.flatten(info, snap["positions"])
+                time.sleep(cfg.loop_seconds)
+                continue
 
             target = cfg.daily_profit_target_pct * start_equity
             if daily_pnl >= target:
-                if not target_hit:
-                    log.info("DAILY TARGET REACHED: %+.2f USD (%.2f%%). Flattening and stopping until next UTC day.",
+                if not st["target_hit"]:
+                    log.info("DAILY TARGET REACHED: %+.2f USD (%.2f%%). Flattening; stopping until next UTC day.",
                              daily_pnl, 100 * daily_pnl / start_equity)
                     ex.flatten(info, snap["positions"])
-                    target_hit = True
+                    mark_target_hit()
                 time.sleep(cfg.loop_seconds)
                 continue
 
@@ -56,7 +63,7 @@ def run():
                 else:
                     try:
                         o = size_order(d, cfg, snap["equity"], snap["coins"][d.coin]["mid"],
-                                       exposure, daily_pnl)
+                                       exposure, daily_pnl, monthly_pnl)
                         ex.open(o, sz_dec[d.coin])
                     except Rejected as e:
                         log.info("REJECTED by risk engine: %s", e)
