@@ -20,6 +20,7 @@ class Config:
     max_risk_per_trade_pct: float = 0.01
     max_daily_loss_pct: float = 0.03
     daily_profit_target_pct: float = 0.0  # 0 = disabled (backtests: daily targets hurt)
+    paper_equity: float = 0.0  # dry-run only: pretend this many USD instead of reading the account
     strategy: str = "rule"  # rule | claude
     max_monthly_loss_pct: float = 0.08
     min_confidence: float = 0.6
@@ -41,6 +42,7 @@ class Config:
             max_daily_loss_pct=_f("MAX_DAILY_LOSS_PCT", 0.03),
             daily_profit_target_pct=_f("DAILY_PROFIT_TARGET_PCT", 0.0),
             strategy=os.getenv("STRATEGY", "rule"),
+            paper_equity=_f("PAPER_EQUITY", 0.0),
             max_monthly_loss_pct=_f("MAX_MONTHLY_LOSS_PCT", 0.08),
             min_confidence=_f("MIN_CONFIDENCE", 0.6),
             loop_seconds=int(_f("LOOP_SECONDS", 3600)),

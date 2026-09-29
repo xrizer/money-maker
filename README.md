@@ -32,3 +32,6 @@ when it agrees with its 24h-average trend; long or short; 4% stop, 8% take-profi
 200-day result: +24.6%, max drawdown 12.8%, profit factor 1.39, 90 trades. Positive in 4 of 5 separate 40-day windows
 (worst window -7.9%). This is past data, ~90 trades, one market regime mix: promising, not proof.
 Daily profit target is off by default because it hurt results in testing.
+
+## Dry run without funds
+    HL_NETWORK=mainnet LIVE=false PAPER_EQUITY=300 python -m moneymaker.main   # add ONCE=true for a single cycle

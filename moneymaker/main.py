@@ -1,4 +1,5 @@
 import logging
+import os
 import time
 from datetime import datetime, timezone
 
@@ -34,6 +35,8 @@ def run():
     while True:
         try:
             snap = snapshot(info, cfg.account_address, cfg.coins)
+            if not cfg.live and cfg.paper_equity > 0:
+                snap["equity"], snap["positions"] = cfg.paper_equity, []
             st = load_baselines(snap["equity"])
             start_equity = st["day_start_equity"]
             daily_pnl = snap["equity"] - start_equity
@@ -73,6 +76,8 @@ def run():
                         log.info("REJECTED by risk engine: %s", e)
         except Exception:
             log.exception("cycle failed")
+        if os.getenv("ONCE") == "true":
+            return
         time.sleep(cfg.loop_seconds)
 
 
