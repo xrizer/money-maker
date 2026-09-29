@@ -1,4 +1,6 @@
 """Trade journal: one JSON line per closed trade, with the market features seen at entry."""
+from __future__ import annotations
+
 import json
 import statistics
 import time

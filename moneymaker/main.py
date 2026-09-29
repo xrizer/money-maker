@@ -1,3 +1,4 @@
+import dataclasses
 import logging
 import os
 import time
@@ -20,7 +21,13 @@ log = logging.getLogger("main")
 def run():
     load_dotenv()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
-    cfg = Config.from_env()
+    cfg = Config.from_env(require_keys=False)
+    if cfg.live and not (cfg.account_address and cfg.secret_key):
+        raise SystemExit("LIVE=true needs HL_ACCOUNT_ADDRESS and HL_SECRET_KEY in .env")
+    if not cfg.live and not cfg.secret_key:  # dry run needs no secrets: use a throwaway key that never trades
+        import eth_account
+        cfg = dataclasses.replace(cfg, secret_key=eth_account.Account.create().key.hex(),
+                                  account_address=cfg.account_address or "0x" + "0" * 40)
     ex = Executor(cfg)
     info = Info(ex.url, skip_ws=True)
     if cfg.strategy == "claude":

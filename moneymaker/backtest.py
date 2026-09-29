@@ -6,6 +6,8 @@ Limitations (be honest with yourself about these):
 - If a candle touches both stop and take-profit, the stop is assumed to hit first (conservative).
 - A good backtest does not guarantee future profit.
 """
+from __future__ import annotations
+
 import argparse
 import hashlib
 import json

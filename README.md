@@ -53,3 +53,9 @@ The bot never retrains itself. Instead it keeps a journal and you review it week
 
 Offline test: `python -m moneymaker.backtest --days 200 --last-days 60 --journal-out data/demo_journal.jsonl`, then
 `python -m moneymaker.review --journal data/demo_journal.jsonl --proposals my_proposals.json` (skips the Claude call).
+
+## Quick start (Mac / Linux, Python 3.9+)
+    git pull && pip3 install -r requirements.txt
+    python3 -m moneymaker.backtest --days 200 --brain rule                 # no keys needed
+    PAPER_EQUITY=300 HL_NETWORK=mainnet python3 -m moneymaker.main         # dry run, no keys needed (Ctrl+C to stop)
+Secrets go ONLY in `.env` (git-ignored), never in `.env.example` (tracked by git).
