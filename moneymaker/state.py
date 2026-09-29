@@ -6,14 +6,20 @@ from pathlib import Path
 PATH = Path("state.json")
 
 
-def load_baselines(equity: float, path: Path = PATH) -> dict:
-    """Return {day_start_equity, month_start_equity, target_hit}, rolling over UTC day/month."""
+def load_baselines(equity: float, path: Path = PATH, ctx: str = "") -> dict:
+    """Return {day_start_equity, month_start_equity, target_hit}, rolling over UTC day/month.
+
+    ctx identifies what is being measured (network + account + paper/real). If it changes, the baselines are
+    reset, so a paper balance can never be compared with a real one (that produced a fake -80% "loss").
+    """
     now = datetime.now(timezone.utc)
     day, month = now.strftime("%Y-%m-%d"), now.strftime("%Y-%m")
     try:
         st = json.loads(path.read_text())
     except (FileNotFoundError, ValueError):
         st = {}
+    if st.get("ctx", "") != ctx:
+        st = {"ctx": ctx}
     if st.get("month") != month:
         st.update(month=month, month_start_equity=equity)
     if st.get("day") != day:

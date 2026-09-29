@@ -37,6 +37,9 @@ def run():
             if cfg.account_address:
                 log.warning("HL_ACCOUNT_ADDRESS is not a real address; ignoring it for this dry run")
             cfg = dataclasses.replace(cfg, account_address="0x" + "0" * 40)
+        if cfg.paper_equity <= 0 and cfg.account_address == "0x" + "0" * 40:
+            log.warning("No real account configured: dry run with a paper balance of 300 USD")
+            cfg = dataclasses.replace(cfg, paper_equity=300.0)
     ex = Executor(cfg)
     info = make_info(ex.url)
     if cfg.strategy == "claude":
@@ -68,7 +71,8 @@ def run():
                 snap["equity"], snap["positions"] = cfg.paper_equity, []
             if cfg.live:
                 journal.reconcile(info, cfg.account_address, snap["positions"], ot)
-            st = load_baselines(snap["equity"])
+            paper = not cfg.live and cfg.paper_equity > 0
+            st = load_baselines(snap["equity"], ctx=f"{cfg.network}|{cfg.account_address}|{'paper' if paper else 'real'}")
             start_equity = st["day_start_equity"]
             daily_pnl = snap["equity"] - start_equity
             monthly_pnl = snap["equity"] - st["month_start_equity"]
